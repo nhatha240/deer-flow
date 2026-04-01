@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from app.gateway.routers.ideas import remove_thread_from_ideas
 from deerflow.config.paths import Paths, get_paths
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,7 @@ def _delete_thread_data(thread_id: str, paths: Paths | None = None) -> ThreadDel
     path_manager = paths or get_paths()
     try:
         path_manager.delete_thread_dir(thread_id)
+        remove_thread_from_ideas(thread_id, path_manager)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:

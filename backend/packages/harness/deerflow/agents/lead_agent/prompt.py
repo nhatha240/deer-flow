@@ -457,8 +457,11 @@ def get_deferred_tools_prompt_section() -> str:
     return f"<available-deferred-tools>\n{names}\n</available-deferred-tools>"
 
 
-def _build_acp_section() -> str:
+def _build_acp_section(include_acp_tools: bool = True) -> str:
     """Build the ACP agent prompt section, only if ACP agents are configured."""
+    if not include_acp_tools:
+        return ""
+
     try:
         from deerflow.config.acp_config import get_acp_agents
 
@@ -477,7 +480,14 @@ def _build_acp_section() -> str:
     )
 
 
-def apply_prompt_template(subagent_enabled: bool = False, max_concurrent_subagents: int = 3, *, agent_name: str | None = None, available_skills: set[str] | None = None) -> str:
+def apply_prompt_template(
+    subagent_enabled: bool = False,
+    max_concurrent_subagents: int = 3,
+    *,
+    agent_name: str | None = None,
+    available_skills: set[str] | None = None,
+    include_acp_tools: bool = True,
+) -> str:
     # Get memory context
     memory_context = _get_memory_context(agent_name)
 
@@ -510,7 +520,7 @@ def apply_prompt_template(subagent_enabled: bool = False, max_concurrent_subagen
     deferred_tools_section = get_deferred_tools_prompt_section()
 
     # Build ACP agent section only if ACP agents are configured
-    acp_section = _build_acp_section()
+    acp_section = _build_acp_section(include_acp_tools=include_acp_tools)
 
     # Format the prompt with dynamic skills and memory
     prompt = SYSTEM_PROMPT_TEMPLATE.format(

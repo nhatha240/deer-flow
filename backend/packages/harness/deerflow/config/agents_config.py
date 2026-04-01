@@ -22,6 +22,11 @@ class AgentConfig(BaseModel):
     description: str = ""
     model: str | None = None
     tool_groups: list[str] | None = None
+    allow_mcp_tools: bool = True
+    allow_acp_tools: bool = True
+    allow_subagents: bool = True
+    denied_tool_names: list[str] | None = None
+    template_id: str | None = None
 
 
 def load_agent_config(name: str | None) -> AgentConfig | None:

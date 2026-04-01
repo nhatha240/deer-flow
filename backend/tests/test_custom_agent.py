@@ -79,6 +79,11 @@ class TestAgentConfig:
         assert cfg.description == ""
         assert cfg.model is None
         assert cfg.tool_groups is None
+        assert cfg.allow_mcp_tools is True
+        assert cfg.allow_acp_tools is True
+        assert cfg.allow_subagents is True
+        assert cfg.denied_tool_names is None
+        assert cfg.template_id is None
 
     def test_full_config(self):
         from deerflow.config.agents_config import AgentConfig
@@ -88,10 +93,20 @@ class TestAgentConfig:
             description="Specialized for code review",
             model="deepseek-v3",
             tool_groups=["file:read", "bash"],
+            allow_mcp_tools=False,
+            allow_acp_tools=False,
+            allow_subagents=False,
+            denied_tool_names=["task", "invoke_acp_agent"],
+            template_id="codex-orchestrator",
         )
         assert cfg.name == "code-reviewer"
         assert cfg.model == "deepseek-v3"
         assert cfg.tool_groups == ["file:read", "bash"]
+        assert cfg.allow_mcp_tools is False
+        assert cfg.allow_acp_tools is False
+        assert cfg.allow_subagents is False
+        assert cfg.denied_tool_names == ["task", "invoke_acp_agent"]
+        assert cfg.template_id == "codex-orchestrator"
 
     def test_config_from_dict(self):
         from deerflow.config.agents_config import AgentConfig
@@ -163,6 +178,29 @@ class TestLoadAgentConfig:
             cfg = load_agent_config("restricted")
 
         assert cfg.tool_groups == ["file:read", "file:write"]
+
+    def test_load_config_with_agent_policy(self, tmp_path):
+        config_dict = {
+            "name": "planner",
+            "tool_groups": ["file:read", "web"],
+            "allow_mcp_tools": False,
+            "allow_acp_tools": False,
+            "allow_subagents": False,
+            "denied_tool_names": ["tool_search"],
+            "template_id": "codex-orchestrator",
+        }
+        _write_agent(tmp_path, "planner", config_dict)
+
+        with patch("deerflow.config.agents_config.get_paths", return_value=_make_paths(tmp_path)):
+            from deerflow.config.agents_config import load_agent_config
+
+            cfg = load_agent_config("planner")
+
+        assert cfg.allow_mcp_tools is False
+        assert cfg.allow_acp_tools is False
+        assert cfg.allow_subagents is False
+        assert cfg.denied_tool_names == ["tool_search"]
+        assert cfg.template_id == "codex-orchestrator"
 
     def test_legacy_prompt_file_field_ignored(self, tmp_path):
         """Unknown fields like the old prompt_file should be silently ignored."""
@@ -375,6 +413,12 @@ def agent_client(tmp_path):
 
 
 class TestAgentsAPI:
+    def test_list_templates(self, agent_client):
+        response = agent_client.get("/api/agent-templates")
+        assert response.status_code == 200
+        templates = response.json()["templates"]
+        assert any(template["id"] == "codex-orchestrator" for template in templates)
+
     def test_list_agents_empty(self, agent_client):
         response = agent_client.get("/api/agents")
         assert response.status_code == 200
@@ -475,6 +519,34 @@ class TestAgentsAPI:
         data = response.json()
         assert data["model"] == "deepseek-v3"
         assert data["tool_groups"] == ["file:read", "bash"]
+
+    def test_create_agent_from_template(self, agent_client):
+        response = agent_client.post(
+            "/api/agents",
+            json={
+                "name": "codex-planner",
+                "template_id": "codex-orchestrator",
+            },
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["template_id"] == "codex-orchestrator"
+        assert data["tool_groups"] == ["file:read", "web"]
+        assert data["allow_mcp_tools"] is False
+        assert data["allow_acp_tools"] is False
+        assert data["allow_subagents"] is False
+        assert data["denied_tool_names"] == ["tool_search"]
+        assert "meta-agent planner" in data["soul"]
+
+    def test_create_agent_with_unknown_template_fails(self, agent_client):
+        response = agent_client.post(
+            "/api/agents",
+            json={
+                "name": "broken-template",
+                "template_id": "missing-template",
+            },
+        )
+        assert response.status_code == 422
 
     def test_create_persists_files_on_disk(self, agent_client, tmp_path):
         agent_client.post("/api/agents", json={"name": "disk-check", "soul": "disk soul"})

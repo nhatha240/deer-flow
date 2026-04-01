@@ -9,6 +9,7 @@ from app.gateway.routers import (
     agents,
     artifacts,
     channels,
+    ideas,
     mcp,
     memory,
     models,
@@ -137,6 +138,10 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
                 "description": "Create and manage custom agents with per-agent config and prompts",
             },
             {
+                "name": "ideas",
+                "description": "Create and manage idea workspaces with planner and worker agent settings",
+            },
+            {
                 "name": "suggestions",
                 "description": "Generate follow-up question suggestions for conversations",
             },
@@ -177,6 +182,9 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
 
     # Agents API is mounted at /api/agents
     app.include_router(agents.router)
+
+    # Ideas API is mounted at /api/ideas
+    app.include_router(ideas.router)
 
     # Suggestions API is mounted at /api/threads/{thread_id}/suggestions
     app.include_router(suggestions.router)

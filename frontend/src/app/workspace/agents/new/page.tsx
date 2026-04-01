@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeftIcon, BotIcon, CheckCircleIcon } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
 import {
@@ -16,7 +16,7 @@ import { ArtifactsProvider } from "@/components/workspace/artifacts";
 import { MessageList } from "@/components/workspace/messages";
 import { ThreadContext } from "@/components/workspace/messages/context";
 import type { Agent } from "@/core/agents";
-import { checkAgentName, getAgent } from "@/core/agents/api";
+import { checkAgentName, createAgent, getAgent } from "@/core/agents/api";
 import { useI18n } from "@/core/i18n/hooks";
 import { useThreadStream } from "@/core/threads/hooks";
 import { uuid } from "@/core/utils/uuid";
@@ -30,6 +30,8 @@ const NAME_RE = /^[A-Za-z0-9-]+$/;
 export default function NewAgentPage() {
   const { t } = useI18n();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const templateId = searchParams.get("template");
 
   // ── Step 1: name form ──────────────────────────────────────────────────────
   const [step, setStep] = useState<Step>("name");
@@ -83,6 +85,22 @@ export default function NewAgentPage() {
       setIsCheckingName(false);
     }
     setAgentName(trimmed);
+
+    if (templateId) {
+      try {
+        const created = await createAgent({
+          name: trimmed,
+          template_id: templateId,
+        });
+        setAgent(created);
+        setStep("chat");
+        return;
+      } catch (err) {
+        setNameError(err instanceof Error ? err.message : String(err));
+        return;
+      }
+    }
+
     setStep("chat");
     await sendMessage(threadId, {
       text: t.agents.nameStepBootstrapMessage.replace("{name}", trimmed),
@@ -96,6 +114,7 @@ export default function NewAgentPage() {
     t.agents.nameStepInvalidError,
     t.agents.nameStepAlreadyExistsError,
     t.agents.nameStepCheckError,
+    templateId,
   ]);
 
   const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

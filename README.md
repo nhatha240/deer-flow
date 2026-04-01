@@ -272,6 +272,42 @@ Prerequisite: complete the "Configuration" steps above first (`make config` and 
 
 6. **Access**: http://localhost:2026
 
+### Starter Agent Templates
+
+DeerFlow now ships built-in starter templates for custom agents. The first template is `codex-orchestrator`, designed for a planner-only workflow:
+
+- Reads the real repository and relevant specs before answering
+- Turns a rough idea into execution-ready prompts for Codex agents
+- Decomposes work into explicit waves for parallel vs sequential execution
+- Stays read-oriented by default: `file:read` + `web` tool groups, with MCP, ACP, and subagent delegation disabled
+
+Use it from the UI at `Workspace -> Agents -> Starter Templates`, or create it directly through the API:
+
+```bash
+curl -s -X POST "http://localhost:8001/api/agents" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "codex-planner",
+    "template_id": "codex-orchestrator"
+  }'
+```
+
+### Idea Workspaces
+
+DeerFlow also exposes a dedicated `/idea` route for cross-repository planning:
+
+- Discovers mounted repositories from `config.yaml -> sandbox.mounts` and lists each project directory as selectable scope
+- Creates an idea-scoped planner agent plus worker agent per idea
+- Stores planner/worker model selection and system prompts with the idea
+- Keeps threads isolated inside each idea so multiple idea conversations can run in parallel
+
+The backing API lives under `/api/ideas`:
+
+- `GET /api/ideas/mounted-projects` - list selectable mounted repositories
+- `GET /api/ideas` / `POST /api/ideas` - list or create ideas
+- `GET /api/ideas/{id}` / `PUT /api/ideas/{id}` / `DELETE /api/ideas/{id}` - manage one idea
+- `POST /api/ideas/{id}/threads/{thread_id}` - attach a thread to an idea once a planner chat starts
+
 ### Advanced
 #### Sandbox Mode
 

@@ -4,10 +4,14 @@ import {
   createAgent,
   deleteAgent,
   getAgent,
+  listAgentTemplates,
   listAgents,
   updateAgent,
 } from "./api";
-import type { CreateAgentRequest, UpdateAgentRequest } from "./types";
+import type {
+  CreateAgentRequest,
+  UpdateAgentRequest,
+} from "./types";
 
 export function useAgents() {
   const { data, isLoading, error } = useQuery({
@@ -24,6 +28,14 @@ export function useAgent(name: string | null | undefined) {
     enabled: !!name,
   });
   return { agent: data ?? null, isLoading, error };
+}
+
+export function useAgentTemplates() {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["agent-templates"],
+    queryFn: () => listAgentTemplates(),
+  });
+  return { templates: data ?? [], isLoading, error };
 }
 
 export function useCreateAgent() {
