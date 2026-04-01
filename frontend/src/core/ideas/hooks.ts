@@ -11,12 +11,15 @@ import {
 } from "./api";
 import type { CreateIdeaRequest, UpdateIdeaRequest } from "./types";
 
+const EMPTY_IDEAS = [] as const;
+const EMPTY_PROJECTS = [] as const;
+
 export function useIdeas() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["ideas"],
     queryFn: () => listIdeas(),
   });
-  return { ideas: data ?? [], isLoading, error };
+  return { ideas: data ?? EMPTY_IDEAS, isLoading, error };
 }
 
 export function useIdea(id: string | null | undefined) {
@@ -33,7 +36,7 @@ export function useMountedProjects() {
     queryKey: ["ideas", "mounted-projects"],
     queryFn: () => listMountedProjects(),
   });
-  return { projects: data ?? [], isLoading, error };
+  return { projects: data ?? EMPTY_PROJECTS, isLoading, error };
 }
 
 export function useCreateIdea() {

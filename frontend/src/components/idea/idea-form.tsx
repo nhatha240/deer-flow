@@ -81,13 +81,17 @@ export function IdeaForm({
   const { t } = useI18n();
   const { projects, isLoading: projectsLoading } = useMountedProjects();
   const { models } = useModels();
+  const modelsSignature = useMemo(
+    () => models.map((model) => model.name).join("|"),
+    [models],
+  );
   const [state, setState] = useState<IdeaFormState>(() =>
     buildIdeaFormState(idea, models),
   );
 
   useEffect(() => {
     setState(buildIdeaFormState(idea, models));
-  }, [idea?.id, idea?.updated_at, models]);
+  }, [idea?.id, idea?.updated_at, modelsSignature]);
 
   const selectedProjects = useMemo(() => {
     const selectedIds = new Set(state.project_ids);
