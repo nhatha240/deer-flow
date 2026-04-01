@@ -44,7 +44,9 @@ def test_paths_include_ideas_dir_and_file(tmp_path):
 def test_list_mounted_projects_scans_directories(tmp_path):
     mount_root = tmp_path / "mounted"
     (mount_root / "spotlight-web").mkdir(parents=True)
+    (mount_root / "spotlight-web" / ".git").mkdir(parents=True)
     (mount_root / "spotlight-api").mkdir(parents=True)
+    (mount_root / "spotlight-api" / "pyproject.toml").write_text("", encoding="utf-8")
 
     app = _make_app()
     paths = Paths(tmp_path)
@@ -60,6 +62,50 @@ def test_list_mounted_projects_scans_directories(tmp_path):
     projects = response.json()["projects"]
     assert [project["name"] for project in projects] == ["spotlight-api", "spotlight-web"]
     assert projects[0]["container_path"].endswith("/spotlight-api")
+
+
+def test_list_mounted_projects_returns_mount_root_when_mount_is_repo(tmp_path):
+    mount_root = tmp_path / "agent_spolight"
+    mount_root.mkdir(parents=True)
+    (mount_root / ".git").mkdir()
+    (mount_root / "src").mkdir()
+    (mount_root / "tests").mkdir()
+
+    app = _make_app()
+    paths = Paths(tmp_path)
+
+    with (
+        patch("app.gateway.routers.ideas.get_paths", return_value=paths),
+        patch("app.gateway.routers.ideas.get_app_config", return_value=_mock_config(mount_root)),
+    ):
+        with TestClient(app) as client:
+            response = client.get("/api/ideas/mounted-projects")
+
+    assert response.status_code == 200
+    projects = response.json()["projects"]
+    assert len(projects) == 1
+    assert projects[0]["name"] == "agent_spolight"
+    assert projects[0]["container_path"] == "/workspace/user-data/nextjs"
+
+
+def test_list_mounted_projects_falls_back_to_mount_root_when_host_path_unavailable(tmp_path):
+    missing_mount = tmp_path / "missing-host-path"
+
+    app = _make_app()
+    paths = Paths(tmp_path)
+
+    with (
+        patch("app.gateway.routers.ideas.get_paths", return_value=paths),
+        patch("app.gateway.routers.ideas.get_app_config", return_value=_mock_config(missing_mount)),
+    ):
+        with TestClient(app) as client:
+            response = client.get("/api/ideas/mounted-projects")
+
+    assert response.status_code == 200
+    projects = response.json()["projects"]
+    assert len(projects) == 1
+    assert projects[0]["name"] == "missing-host-path"
+    assert projects[0]["host_path"].endswith("missing-host-path")
 
 
 def test_create_idea_persists_metadata_and_syncs_agents(tmp_path):

@@ -110,6 +110,30 @@ def _project_digest(host_path: str, container_path: str) -> str:
     return hashlib.sha1(payload.encode("utf-8")).hexdigest()[:16]
 
 
+def _build_project_entry(
+    *,
+    name: str,
+    host_path: Path | str,
+    container_path: str,
+    mount_host_path: Path | str,
+    mount_container_path: str,
+    read_only: bool,
+) -> MountedProjectResponse:
+    host_path_str = str(host_path if isinstance(host_path, str) else host_path.resolve())
+    mount_host_path_str = str(
+        mount_host_path if isinstance(mount_host_path, str) else mount_host_path.resolve()
+    )
+    return MountedProjectResponse(
+        id=_project_digest(host_path_str, container_path),
+        name=name,
+        host_path=host_path_str,
+        container_path=container_path,
+        mount_host_path=mount_host_path_str,
+        mount_container_path=mount_container_path,
+        read_only=read_only,
+    )
+
+
 def _planner_agent_name(idea_id: str) -> str:
     return f"idea-{idea_id}-planner"
 
@@ -118,16 +142,56 @@ def _worker_agent_name(idea_id: str) -> str:
     return f"idea-{idea_id}-worker"
 
 
+def _looks_like_project_dir(path: Path) -> bool:
+    markers = [
+        ".git",
+        "package.json",
+        "pnpm-workspace.yaml",
+        "pyproject.toml",
+        "Cargo.toml",
+        "go.mod",
+        "requirements.txt",
+        "terraform.tfstate",
+        "main.tf",
+    ]
+    return any((path / marker).exists() for marker in markers)
+
+
 def _scan_mount_projects() -> list[MountedProjectResponse]:
     config = get_app_config()
     projects: list[MountedProjectResponse] = []
 
     for mount in config.sandbox.mounts:
         host_root = Path(mount.host_path).expanduser()
+        mount_container = PurePosixPath(mount.container_path)
+        root_name = host_root.name or mount_container.name or str(mount_container)
+
         if not host_root.exists() or not host_root.is_dir():
+            projects.append(
+                _build_project_entry(
+                    name=root_name,
+                    host_path=str(host_root),
+                    container_path=str(mount_container),
+                    mount_host_path=str(host_root),
+                    mount_container_path=str(mount_container),
+                    read_only=mount.read_only,
+                )
+            )
             continue
 
-        mount_container = PurePosixPath(mount.container_path)
+        if _looks_like_project_dir(host_root):
+            projects.append(
+                _build_project_entry(
+                    name=root_name,
+                    host_path=host_root,
+                    container_path=str(mount_container),
+                    mount_host_path=host_root,
+                    mount_container_path=str(mount_container),
+                    read_only=mount.read_only,
+                )
+            )
+            continue
+
         try:
             children = sorted(
                 [child for child in host_root.iterdir() if child.is_dir() and not child.name.startswith(".")],
@@ -137,31 +201,28 @@ def _scan_mount_projects() -> list[MountedProjectResponse]:
             logger.exception("Failed to scan mounted projects under %s", host_root)
             continue
 
-        if not children:
-            project_container = str(mount_container)
+        child_projects = [child for child in children if _looks_like_project_dir(child)]
+        if not child_projects:
             projects.append(
-                MountedProjectResponse(
-                    id=_project_digest(str(host_root.resolve()), project_container),
-                    name=host_root.name,
-                    host_path=str(host_root.resolve()),
-                    container_path=project_container,
-                    mount_host_path=str(host_root.resolve()),
+                _build_project_entry(
+                    name=root_name,
+                    host_path=host_root,
+                    container_path=str(mount_container),
+                    mount_host_path=host_root,
                     mount_container_path=str(mount_container),
                     read_only=mount.read_only,
                 )
             )
             continue
 
-        for child in children:
-            resolved_child = child.resolve()
+        for child in child_projects:
             project_container = str(mount_container / child.name)
             projects.append(
-                MountedProjectResponse(
-                    id=_project_digest(str(resolved_child), project_container),
+                _build_project_entry(
                     name=child.name,
-                    host_path=str(resolved_child),
+                    host_path=child,
                     container_path=project_container,
-                    mount_host_path=str(host_root.resolve()),
+                    mount_host_path=host_root,
                     mount_container_path=str(mount_container),
                     read_only=mount.read_only,
                 )
