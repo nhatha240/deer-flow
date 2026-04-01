@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from deerflow.config.agents_config import AgentConfig, list_custom_agents, load_agent_config, load_agent_soul
+from deerflow.config.agent_templates import get_agent_template, list_agent_templates
 from deerflow.config.paths import get_paths
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,11 @@ class AgentResponse(BaseModel):
     description: str = Field(default="", description="Agent description")
     model: str | None = Field(default=None, description="Optional model override")
     tool_groups: list[str] | None = Field(default=None, description="Optional tool group whitelist")
+    allow_mcp_tools: bool = Field(default=True, description="Whether MCP tools are available to the agent")
+    allow_acp_tools: bool = Field(default=True, description="Whether ACP tools are available to the agent")
+    allow_subagents: bool = Field(default=True, description="Whether subagent delegation can be enabled for the agent")
+    denied_tool_names: list[str] | None = Field(default=None, description="Optional denylist of tool names filtered from the agent")
+    template_id: str | None = Field(default=None, description="Optional built-in template id used when the agent was created")
     soul: str | None = Field(default=None, description="SOUL.md content (included on GET /{name})")
 
 
@@ -33,14 +39,33 @@ class AgentsListResponse(BaseModel):
     agents: list[AgentResponse]
 
 
+class AgentTemplateResponse(BaseModel):
+    """Response model for a built-in agent template."""
+
+    id: str = Field(..., description="Stable template identifier")
+    name: str = Field(..., description="Human-readable template name")
+    description: str = Field(..., description="Template summary")
+
+
+class AgentTemplatesListResponse(BaseModel):
+    """Response model for listing built-in agent templates."""
+
+    templates: list[AgentTemplateResponse]
+
+
 class AgentCreateRequest(BaseModel):
     """Request body for creating a custom agent."""
 
     name: str = Field(..., description="Agent name (must match ^[A-Za-z0-9-]+$, stored as lowercase)")
-    description: str = Field(default="", description="Agent description")
+    template_id: str | None = Field(default=None, description="Optional built-in template id")
+    description: str | None = Field(default=None, description="Agent description")
     model: str | None = Field(default=None, description="Optional model override")
     tool_groups: list[str] | None = Field(default=None, description="Optional tool group whitelist")
-    soul: str = Field(default="", description="SOUL.md content — agent personality and behavioral guardrails")
+    allow_mcp_tools: bool | None = Field(default=None, description="Optional override for MCP tool access")
+    allow_acp_tools: bool | None = Field(default=None, description="Optional override for ACP tool access")
+    allow_subagents: bool | None = Field(default=None, description="Optional override for subagent delegation")
+    denied_tool_names: list[str] | None = Field(default=None, description="Optional denylist of tool names")
+    soul: str | None = Field(default=None, description="SOUL.md content — agent personality and behavioral guardrails")
 
 
 class AgentUpdateRequest(BaseModel):
@@ -49,6 +74,10 @@ class AgentUpdateRequest(BaseModel):
     description: str | None = Field(default=None, description="Updated description")
     model: str | None = Field(default=None, description="Updated model override")
     tool_groups: list[str] | None = Field(default=None, description="Updated tool group whitelist")
+    allow_mcp_tools: bool | None = Field(default=None, description="Updated MCP tool access policy")
+    allow_acp_tools: bool | None = Field(default=None, description="Updated ACP tool access policy")
+    allow_subagents: bool | None = Field(default=None, description="Updated subagent access policy")
+    denied_tool_names: list[str] | None = Field(default=None, description="Updated denylist of tool names")
     soul: str | None = Field(default=None, description="Updated SOUL.md content")
 
 
@@ -84,8 +113,68 @@ def _agent_config_to_response(agent_cfg: AgentConfig, include_soul: bool = False
         description=agent_cfg.description,
         model=agent_cfg.model,
         tool_groups=agent_cfg.tool_groups,
+        allow_mcp_tools=agent_cfg.allow_mcp_tools,
+        allow_acp_tools=agent_cfg.allow_acp_tools,
+        allow_subagents=agent_cfg.allow_subagents,
+        denied_tool_names=agent_cfg.denied_tool_names,
+        template_id=agent_cfg.template_id,
         soul=soul,
     )
+
+
+def _resolve_agent_template(template_id: str | None):
+    if not template_id:
+        return None
+
+    template = get_agent_template(template_id)
+    if template is None:
+        raise HTTPException(status_code=422, detail=f"Unknown agent template '{template_id}'")
+    return template
+
+
+def _build_agent_payload(name: str, request: AgentCreateRequest | AgentUpdateRequest, existing: AgentConfig | None = None) -> tuple[dict, str]:
+    template = _resolve_agent_template(getattr(request, "template_id", None)) if existing is None else None
+    description = request.description if request.description is not None else (existing.description if existing else (template.description if template else ""))
+    model = request.model if request.model is not None else (existing.model if existing else template.model if template else None)
+    tool_groups = request.tool_groups if request.tool_groups is not None else (existing.tool_groups if existing else template.tool_groups if template else None)
+    allow_mcp_tools = request.allow_mcp_tools if request.allow_mcp_tools is not None else (existing.allow_mcp_tools if existing else template.allow_mcp_tools if template else True)
+    allow_acp_tools = request.allow_acp_tools if request.allow_acp_tools is not None else (existing.allow_acp_tools if existing else template.allow_acp_tools if template else True)
+    allow_subagents = request.allow_subagents if request.allow_subagents is not None else (existing.allow_subagents if existing else template.allow_subagents if template else True)
+    denied_tool_names = request.denied_tool_names if request.denied_tool_names is not None else (existing.denied_tool_names if existing else template.denied_tool_names if template else None)
+    template_id = existing.template_id if existing else (template.id if template else None)
+    soul = request.soul if request.soul is not None else (load_agent_soul(existing.name) if existing else template.soul if template else "")
+
+    config_data: dict = {
+        "name": name,
+        "description": description,
+        "allow_mcp_tools": allow_mcp_tools,
+        "allow_acp_tools": allow_acp_tools,
+        "allow_subagents": allow_subagents,
+    }
+    if model is not None:
+        config_data["model"] = model
+    if tool_groups is not None:
+        config_data["tool_groups"] = tool_groups
+    if denied_tool_names is not None:
+        config_data["denied_tool_names"] = denied_tool_names
+    if template_id is not None:
+        config_data["template_id"] = template_id
+
+    return config_data, soul
+
+
+@router.get(
+    "/agent-templates",
+    response_model=AgentTemplatesListResponse,
+    summary="List Built-in Agent Templates",
+    description="List first-party templates that can be used to create custom agents quickly.",
+)
+async def list_templates() -> AgentTemplatesListResponse:
+    templates = [
+        AgentTemplateResponse(id=template.id, name=template.name, description=template.description)
+        for template in list_agent_templates()
+    ]
+    return AgentTemplatesListResponse(templates=templates)
 
 
 @router.get(
@@ -192,14 +281,7 @@ async def create_agent_endpoint(request: AgentCreateRequest) -> AgentResponse:
     try:
         agent_dir.mkdir(parents=True, exist_ok=True)
 
-        # Write config.yaml
-        config_data: dict = {"name": normalized_name}
-        if request.description:
-            config_data["description"] = request.description
-        if request.model is not None:
-            config_data["model"] = request.model
-        if request.tool_groups is not None:
-            config_data["tool_groups"] = request.tool_groups
+        config_data, soul = _build_agent_payload(normalized_name, request)
 
         config_file = agent_dir / "config.yaml"
         with open(config_file, "w", encoding="utf-8") as f:
@@ -207,7 +289,7 @@ async def create_agent_endpoint(request: AgentCreateRequest) -> AgentResponse:
 
         # Write SOUL.md
         soul_file = agent_dir / "SOUL.md"
-        soul_file.write_text(request.soul, encoding="utf-8")
+        soul_file.write_text(soul, encoding="utf-8")
 
         logger.info(f"Created agent '{normalized_name}' at {agent_dir}")
 
@@ -255,21 +337,21 @@ async def update_agent(name: str, request: AgentUpdateRequest) -> AgentResponse:
 
     try:
         # Update config if any config fields changed
-        config_changed = any(v is not None for v in [request.description, request.model, request.tool_groups])
+        config_changed = any(
+            v is not None
+            for v in [
+                request.description,
+                request.model,
+                request.tool_groups,
+                request.allow_mcp_tools,
+                request.allow_acp_tools,
+                request.allow_subagents,
+                request.denied_tool_names,
+            ]
+        )
 
         if config_changed:
-            updated: dict = {
-                "name": agent_cfg.name,
-                "description": request.description if request.description is not None else agent_cfg.description,
-            }
-            new_model = request.model if request.model is not None else agent_cfg.model
-            if new_model is not None:
-                updated["model"] = new_model
-
-            new_tool_groups = request.tool_groups if request.tool_groups is not None else agent_cfg.tool_groups
-            if new_tool_groups is not None:
-                updated["tool_groups"] = new_tool_groups
-
+            updated, _ = _build_agent_payload(name, request, existing=agent_cfg)
             config_file = agent_dir / "config.yaml"
             with open(config_file, "w", encoding="utf-8") as f:
                 yaml.dump(updated, f, default_flow_style=False, allow_unicode=True)

@@ -143,6 +143,11 @@ services:
         read_only: true
         bind:
           create_host_path: true
+      # User workspace: read/write access for code editing and review
+      - type: bind
+        source: /Users/NhatHa/anh_dung/nextjs
+        target: /mnt/workspace/nextjs
+        read_only: false
     working_dir: /app
     environment:
       - CI=true
@@ -197,6 +202,11 @@ services:
         read_only: true
         bind:
           create_host_path: true
+      # User workspace: read/write access for code editing and review
+      - type: bind
+        source: /Users/NhatHa/anh_dung/nextjs
+        target: /mnt/workspace/nextjs
+        read_only: false
     working_dir: /app
     environment:
       - CI=true

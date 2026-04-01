@@ -35,8 +35,10 @@ def _is_host_bash_tool(tool: object) -> bool:
 def get_available_tools(
     groups: list[str] | None = None,
     include_mcp: bool = True,
+    include_acp: bool = True,
     model_name: str | None = None,
     subagent_enabled: bool = False,
+    denied_tool_names: set[str] | None = None,
 ) -> list[BaseTool]:
     """Get all available tools from config.
 
@@ -46,8 +48,10 @@ def get_available_tools(
     Args:
         groups: Optional list of tool groups to filter by.
         include_mcp: Whether to include tools from MCP servers (default: True).
+        include_acp: Whether to include tools from configured ACP agents.
         model_name: Optional model name to determine if vision tools should be included.
         subagent_enabled: Whether to include subagent tools (task, task_status).
+        denied_tool_names: Optional set of tool names to filter out after loading.
 
     Returns:
         List of available tools.
@@ -117,16 +121,28 @@ def get_available_tools(
 
     # Add invoke_acp_agent tool if any ACP agents are configured
     acp_tools: list[BaseTool] = []
-    try:
-        from deerflow.config.acp_config import get_acp_agents
-        from deerflow.tools.builtins.invoke_acp_agent_tool import build_invoke_acp_agent_tool
+    if include_acp:
+        try:
+            from deerflow.config.acp_config import get_acp_agents
+            from deerflow.tools.builtins.invoke_acp_agent_tool import build_invoke_acp_agent_tool
 
-        acp_agents = get_acp_agents()
-        if acp_agents:
-            acp_tools.append(build_invoke_acp_agent_tool(acp_agents))
-            logger.info(f"Including invoke_acp_agent tool ({len(acp_agents)} agent(s): {list(acp_agents.keys())})")
-    except Exception as e:
-        logger.warning(f"Failed to load ACP tool: {e}")
+            acp_agents = get_acp_agents()
+            if acp_agents:
+                acp_tools.append(build_invoke_acp_agent_tool(acp_agents))
+                logger.info(f"Including invoke_acp_agent tool ({len(acp_agents)} agent(s): {list(acp_agents.keys())})")
+        except Exception as e:
+            logger.warning(f"Failed to load ACP tool: {e}")
 
-    logger.info(f"Total tools loaded: {len(loaded_tools)}, built-in tools: {len(builtin_tools)}, MCP tools: {len(mcp_tools)}, ACP tools: {len(acp_tools)}")
-    return loaded_tools + builtin_tools + mcp_tools + acp_tools
+    tools = loaded_tools + builtin_tools + mcp_tools + acp_tools
+    if denied_tool_names:
+        tools = [tool for tool in tools if tool.name not in denied_tool_names]
+
+    logger.info(
+        "Total tools loaded: %s, built-in tools: %s, MCP tools: %s, ACP tools: %s, denied filter: %s",
+        len(loaded_tools),
+        len(builtin_tools),
+        len(mcp_tools),
+        len(acp_tools),
+        sorted(denied_tool_names) if denied_tool_names else [],
+    )
+    return tools

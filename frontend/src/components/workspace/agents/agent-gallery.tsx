@@ -4,7 +4,15 @@ import { BotIcon, PlusIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import { useAgents } from "@/core/agents";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { useAgents, useAgentTemplates } from "@/core/agents";
 import { useI18n } from "@/core/i18n/hooks";
 
 import { AgentCard } from "./agent-card";
@@ -12,10 +20,15 @@ import { AgentCard } from "./agent-card";
 export function AgentGallery() {
   const { t } = useI18n();
   const { agents, isLoading } = useAgents();
+  const { templates } = useAgentTemplates();
   const router = useRouter();
 
   const handleNewAgent = () => {
     router.push("/workspace/agents/new");
+  };
+
+  const handleUseTemplate = (templateId: string) => {
+    router.push(`/workspace/agents/new?template=${encodeURIComponent(templateId)}`);
   };
 
   return (
@@ -36,6 +49,41 @@ export function AgentGallery() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
+        {templates.length > 0 && (
+          <section className="mb-6 space-y-3">
+            <div>
+              <h2 className="text-base font-semibold">
+                {t.agents.templatesTitle}
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                {t.agents.templatesDescription}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+              {templates.map((template) => (
+                <Card key={template.id} className="flex flex-col">
+                  <CardHeader>
+                    <CardTitle className="text-base">{template.name}</CardTitle>
+                    <CardDescription>{template.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-muted-foreground pt-0 text-sm">
+                    {template.id}
+                  </CardContent>
+                  <CardFooter className="mt-auto">
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => handleUseTemplate(template.id)}
+                    >
+                      {t.agents.useTemplate}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
+
         {isLoading ? (
           <div className="text-muted-foreground flex h-40 items-center justify-center text-sm">
             {t.common.loading}

@@ -35,7 +35,7 @@ from langchain_core.runnables import RunnableConfig
 from deerflow.agents.lead_agent.agent import _build_middlewares
 from deerflow.agents.lead_agent.prompt import apply_prompt_template
 from deerflow.agents.thread_state import ThreadState
-from deerflow.config.agents_config import AGENT_NAME_PATTERN
+from deerflow.config.agents_config import AGENT_NAME_PATTERN, load_agent_config
 from deerflow.config.app_config import get_app_config, reload_app_config
 from deerflow.config.extensions_config import ExtensionsConfig, SkillStateConfig, get_extensions_config, reload_extensions_config
 from deerflow.config.paths import get_paths
@@ -203,29 +203,44 @@ class DeerFlowClient:
     def _ensure_agent(self, config: RunnableConfig):
         """Create (or recreate) the agent when config-dependent params change."""
         cfg = config.get("configurable", {})
+        thinking_enabled = cfg.get("thinking_enabled", True)
+        agent_config = load_agent_config(self._agent_name) if self._agent_name else None
+        model_name = cfg.get("model_name") or (agent_config.model if agent_config and agent_config.model else None)
+        include_mcp_tools = agent_config.allow_mcp_tools if agent_config else True
+        include_acp_tools = agent_config.allow_acp_tools if agent_config else True
+        denied_tool_names = set(agent_config.denied_tool_names or []) if agent_config else None
+        subagent_enabled = cfg.get("subagent_enabled", False) and (agent_config.allow_subagents if agent_config else True)
+        max_concurrent_subagents = cfg.get("max_concurrent_subagents", 3)
+        config.setdefault("configurable", {})["subagent_enabled"] = subagent_enabled
         key = (
-            cfg.get("model_name"),
-            cfg.get("thinking_enabled"),
+            model_name,
+            thinking_enabled,
             cfg.get("is_plan_mode"),
-            cfg.get("subagent_enabled"),
+            subagent_enabled,
+            include_mcp_tools,
+            include_acp_tools,
+            tuple(sorted(denied_tool_names or set())),
         )
 
         if self._agent is not None and self._agent_config_key == key:
             return
 
-        thinking_enabled = cfg.get("thinking_enabled", True)
-        model_name = cfg.get("model_name")
-        subagent_enabled = cfg.get("subagent_enabled", False)
-        max_concurrent_subagents = cfg.get("max_concurrent_subagents", 3)
-
         kwargs: dict[str, Any] = {
             "model": create_chat_model(name=model_name, thinking_enabled=thinking_enabled),
-            "tools": self._get_tools(model_name=model_name, subagent_enabled=subagent_enabled),
+            "tools": self._get_tools(
+                model_name=model_name,
+                groups=agent_config.tool_groups if agent_config else None,
+                include_mcp=include_mcp_tools,
+                include_acp=include_acp_tools,
+                subagent_enabled=subagent_enabled,
+                denied_tool_names=denied_tool_names,
+            ),
             "middleware": _build_middlewares(config, model_name=model_name, agent_name=self._agent_name, custom_middlewares=self._middlewares),
             "system_prompt": apply_prompt_template(
                 subagent_enabled=subagent_enabled,
                 max_concurrent_subagents=max_concurrent_subagents,
                 agent_name=self._agent_name,
+                include_acp_tools=include_acp_tools,
             ),
             "state_schema": ThreadState,
         }
@@ -242,11 +257,26 @@ class DeerFlowClient:
         logger.info("Agent created: agent_name=%s, model=%s, thinking=%s", self._agent_name, model_name, thinking_enabled)
 
     @staticmethod
-    def _get_tools(*, model_name: str | None, subagent_enabled: bool):
+    def _get_tools(
+        *,
+        model_name: str | None,
+        groups: list[str] | None = None,
+        include_mcp: bool = True,
+        include_acp: bool = True,
+        subagent_enabled: bool,
+        denied_tool_names: set[str] | None = None,
+    ):
         """Lazy import to avoid circular dependency at module level."""
         from deerflow.tools import get_available_tools
 
-        return get_available_tools(model_name=model_name, subagent_enabled=subagent_enabled)
+        return get_available_tools(
+            groups=groups,
+            include_mcp=include_mcp,
+            include_acp=include_acp,
+            model_name=model_name,
+            subagent_enabled=subagent_enabled,
+            denied_tool_names=denied_tool_names,
+        )
 
     @staticmethod
     def _serialize_message(msg) -> dict:

@@ -84,6 +84,11 @@ class Paths:
         """Root directory for all custom agents: `{base_dir}/agents/`."""
         return self.base_dir / "agents"
 
+    @property
+    def ideas_dir(self) -> Path:
+        """Root directory for all ideas: `{base_dir}/ideas/`."""
+        return self.base_dir / "ideas"
+
     def agent_dir(self, name: str) -> Path:
         """Directory for a specific agent: `{base_dir}/agents/{name}/`."""
         return self.agents_dir / name.lower()
@@ -91,6 +96,14 @@ class Paths:
     def agent_memory_file(self, name: str) -> Path:
         """Per-agent memory file: `{base_dir}/agents/{name}/memory.json`."""
         return self.agent_dir(name) / "memory.json"
+
+    def idea_file(self, idea_id: str) -> Path:
+        """Metadata file for a specific idea: `{base_dir}/ideas/{idea_id}.json`."""
+        if not _SAFE_THREAD_ID_RE.match(idea_id):
+            raise ValueError(
+                f"Invalid idea_id {idea_id!r}: only alphanumeric characters, hyphens, and underscores are allowed."
+            )
+        return self.ideas_dir / f"{idea_id}.json"
 
     def thread_dir(self, thread_id: str) -> Path:
         """

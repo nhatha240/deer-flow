@@ -165,6 +165,64 @@ export const enUS: Translations = {
     recentChats: "Recent chats",
     demoChats: "Demo chats",
     agents: "Agents",
+    ideas: "Ideas",
+  },
+
+  ideas: {
+    title: "Ideas",
+    description:
+      "Group mounted repositories into one planning workspace with isolated threads and dedicated planner/worker settings.",
+    newIdea: "New idea",
+    createIdea: "Create idea",
+    createSuccess: "Idea created",
+    saveSuccess: "Idea saved",
+    deleteSuccess: "Idea deleted",
+    deleteIdea: "Delete idea",
+    deleteConfirm:
+      "Delete this idea and its backing planner/worker agents? This cannot be undone.",
+    emptyTitle: "No ideas yet",
+    emptyDescription:
+      "Create an idea to bundle related repositories into one cross-project planning space.",
+    mountedProjects: "Mounted projects",
+    mountedProjectsDescription:
+      "These repositories are available from the current sandbox mounts.",
+    noMountedProjects:
+      "No mounted projects were discovered from the current sandbox configuration.",
+    noDescription: "No description provided",
+    selectedProjects: "selected",
+    selectedBadge: "Selected",
+    availableBadge: "Available",
+    threads: "threads",
+    threadsTitle: "Idea threads",
+    threadsDescription:
+      "Threads inside this idea stay isolated from other ideas and can run in parallel.",
+    noThreads: "No threads in this idea yet.",
+    openPlanner: "Open planner chat",
+    newPlannerChat: "New planner chat",
+    formScopeTitle: "Idea scope",
+    formScopeDescription:
+      "Choose the repositories that belong to this idea and describe the shared outcome.",
+    formSummaryTitle: "Execution summary",
+    formSummaryDescription:
+      "Planner and worker settings are stored with the idea and reused across its threads.",
+    nameLabel: "Idea name",
+    namePlaceholder: "e.g. spotlight platform rollout",
+    descriptionLabel: "Description",
+    descriptionPlaceholder:
+      "Describe the cross-project objective, rollout, or migration this idea owns.",
+    modelLabel: "Model",
+    systemPromptLabel: "System prompt",
+    plannerTitle: "Planner",
+    plannerDescription:
+      "This planner reads the selected repos and produces dependency-aware execution prompts.",
+    plannerPromptPlaceholder:
+      "Tell the planner how to analyze the selected repositories and structure the execution plan.",
+    workerTitle: "Agent worker",
+    workerDescription:
+      "This worker config is stored with the idea for implementation-oriented execution later.",
+    workerPromptPlaceholder:
+      "Tell the worker how to implement changes once the planner hands off scoped work.",
+    selectAtLeastOneProject: "Select at least one mounted project to continue.",
   },
 
   // Agents
@@ -199,12 +257,17 @@ export const enUS: Translations = {
     agentCreated: "Agent created!",
     startChatting: "Start chatting",
     backToGallery: "Back to Gallery",
+    templatesTitle: "Starter Templates",
+    templatesDescription:
+      "Use a built-in template when you want a specialized agent without bootstrapping it through chat.",
+    useTemplate: "Use template",
   },
 
   // Breadcrumb
   breadcrumb: {
     workspace: "Workspace",
     chats: "Chats",
+    idea: "Ideas",
   },
 
   // Workspace

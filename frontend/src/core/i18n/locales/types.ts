@@ -110,6 +110,51 @@ export interface Translations {
     chats: string;
     demoChats: string;
     agents: string;
+    ideas: string;
+  };
+
+  ideas: {
+    title: string;
+    description: string;
+    newIdea: string;
+    createIdea: string;
+    createSuccess: string;
+    saveSuccess: string;
+    deleteSuccess: string;
+    deleteIdea: string;
+    deleteConfirm: string;
+    emptyTitle: string;
+    emptyDescription: string;
+    mountedProjects: string;
+    mountedProjectsDescription: string;
+    noMountedProjects: string;
+    noDescription: string;
+    selectedProjects: string;
+    selectedBadge: string;
+    availableBadge: string;
+    threads: string;
+    threadsTitle: string;
+    threadsDescription: string;
+    noThreads: string;
+    openPlanner: string;
+    newPlannerChat: string;
+    formScopeTitle: string;
+    formScopeDescription: string;
+    formSummaryTitle: string;
+    formSummaryDescription: string;
+    nameLabel: string;
+    namePlaceholder: string;
+    descriptionLabel: string;
+    descriptionPlaceholder: string;
+    modelLabel: string;
+    systemPromptLabel: string;
+    plannerTitle: string;
+    plannerDescription: string;
+    plannerPromptPlaceholder: string;
+    workerTitle: string;
+    workerDescription: string;
+    workerPromptPlaceholder: string;
+    selectAtLeastOneProject: string;
   };
 
   // Agents
@@ -137,12 +182,16 @@ export interface Translations {
     agentCreated: string;
     startChatting: string;
     backToGallery: string;
+    templatesTitle: string;
+    templatesDescription: string;
+    useTemplate: string;
   };
 
   // Breadcrumb
   breadcrumb: {
     workspace: string;
     chats: string;
+    idea: string;
   };
 
   // Workspace

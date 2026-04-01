@@ -94,6 +94,45 @@ class TestClientInit:
             c = DeerFlowClient(checkpointer=cp)
         assert c._checkpointer is cp
 
+    def test_custom_agent_policy_filters_tools(self, mock_app_config):
+        with patch("deerflow.client.get_app_config", return_value=mock_app_config):
+            client = DeerFlowClient(agent_name="planner")
+
+        agent_policy = MagicMock()
+        agent_policy.model = None
+        agent_policy.tool_groups = ["file:read", "web"]
+        agent_policy.allow_mcp_tools = False
+        agent_policy.allow_acp_tools = False
+        agent_policy.allow_subagents = False
+        agent_policy.denied_tool_names = ["tool_search"]
+
+        with (
+            patch("deerflow.client.load_agent_config", return_value=agent_policy),
+            patch("deerflow.client.create_chat_model", return_value=object()),
+            patch.object(client, "_get_tools", return_value=[]) as mock_get_tools,
+            patch("deerflow.client._build_middlewares", return_value=[]),
+            patch("deerflow.client.create_agent", return_value=MagicMock()),
+        ):
+            client._ensure_agent(
+                {
+                    "configurable": {
+                        "thread_id": "t-1",
+                        "thinking_enabled": False,
+                        "is_plan_mode": False,
+                        "subagent_enabled": True,
+                    }
+                }
+            )
+
+        mock_get_tools.assert_called_once_with(
+            model_name=None,
+            groups=["file:read", "web"],
+            include_mcp=False,
+            include_acp=False,
+            subagent_enabled=False,
+            denied_tool_names={"tool_search"},
+        )
+
 
 # ---------------------------------------------------------------------------
 # list_models / list_skills / get_memory

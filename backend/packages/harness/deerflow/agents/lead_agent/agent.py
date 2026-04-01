@@ -287,6 +287,12 @@ def make_lead_agent(config: RunnableConfig):
     agent_name = cfg.get("agent_name")
 
     agent_config = load_agent_config(agent_name) if not is_bootstrap else None
+    include_mcp_tools = agent_config.allow_mcp_tools if agent_config else True
+    include_acp_tools = agent_config.allow_acp_tools if agent_config else True
+    denied_tool_names = set(agent_config.denied_tool_names or []) if agent_config else None
+    subagent_enabled = subagent_enabled and (agent_config.allow_subagents if agent_config else True)
+    config.setdefault("configurable", {})["subagent_enabled"] = subagent_enabled
+
     # Custom agent model or fallback to global/default model resolution
     agent_model_name = agent_config.model if agent_config and agent_config.model else _resolve_model_name()
 
@@ -334,15 +340,32 @@ def make_lead_agent(config: RunnableConfig):
             model=create_chat_model(name=model_name, thinking_enabled=thinking_enabled),
             tools=get_available_tools(model_name=model_name, subagent_enabled=subagent_enabled) + [setup_agent],
             middleware=_build_middlewares(config, model_name=model_name),
-            system_prompt=apply_prompt_template(subagent_enabled=subagent_enabled, max_concurrent_subagents=max_concurrent_subagents, available_skills=set(["bootstrap"])),
+            system_prompt=apply_prompt_template(
+                subagent_enabled=subagent_enabled,
+                max_concurrent_subagents=max_concurrent_subagents,
+                include_acp_tools=include_acp_tools,
+                available_skills=set(["bootstrap"]),
+            ),
             state_schema=ThreadState,
         )
 
     # Default lead agent (unchanged behavior)
     return create_agent(
         model=create_chat_model(name=model_name, thinking_enabled=thinking_enabled, reasoning_effort=reasoning_effort),
-        tools=get_available_tools(model_name=model_name, groups=agent_config.tool_groups if agent_config else None, subagent_enabled=subagent_enabled),
+        tools=get_available_tools(
+            model_name=model_name,
+            groups=agent_config.tool_groups if agent_config else None,
+            include_mcp=include_mcp_tools,
+            include_acp=include_acp_tools,
+            subagent_enabled=subagent_enabled,
+            denied_tool_names=denied_tool_names,
+        ),
         middleware=_build_middlewares(config, model_name=model_name, agent_name=agent_name),
-        system_prompt=apply_prompt_template(subagent_enabled=subagent_enabled, max_concurrent_subagents=max_concurrent_subagents, agent_name=agent_name),
+        system_prompt=apply_prompt_template(
+            subagent_enabled=subagent_enabled,
+            max_concurrent_subagents=max_concurrent_subagents,
+            include_acp_tools=include_acp_tools,
+            agent_name=agent_name,
+        ),
         state_schema=ThreadState,
     )

@@ -159,6 +159,57 @@ export const zhCN: Translations = {
     recentChats: "最近的对话",
     demoChats: "演示对话",
     agents: "智能体",
+    ideas: "Ideas",
+  },
+
+  ideas: {
+    title: "Ideas",
+    description:
+      "把多个已挂载仓库组合进同一个规划工作区，并为它们提供独立线程与 planner/worker 配置。",
+    newIdea: "新建 idea",
+    createIdea: "创建 idea",
+    createSuccess: "Idea 已创建",
+    saveSuccess: "Idea 已保存",
+    deleteSuccess: "Idea 已删除",
+    deleteIdea: "删除 idea",
+    deleteConfirm:
+      "要删除这个 idea 以及它对应的 planner/worker agent 吗？此操作不可撤销。",
+    emptyTitle: "还没有 idea",
+    emptyDescription: "创建一个 idea，把相关仓库放进同一个跨项目规划空间。",
+    mountedProjects: "已挂载项目",
+    mountedProjectsDescription: "这些仓库来自当前 sandbox 的 mounts 配置。",
+    noMountedProjects: "当前 sandbox 配置中没有发现可用的挂载项目。",
+    noDescription: "暂无描述",
+    selectedProjects: "已选",
+    selectedBadge: "已选择",
+    availableBadge: "可用",
+    threads: "线程",
+    threadsTitle: "Idea 线程",
+    threadsDescription: "Idea 内的线程彼此独立，并且可以并行运行。",
+    noThreads: "这个 idea 还没有线程。",
+    openPlanner: "打开 planner 对话",
+    newPlannerChat: "新 planner 对话",
+    formScopeTitle: "Idea 范围",
+    formScopeDescription: "选择这个 idea 关联的仓库，并描述它要完成的共同目标。",
+    formSummaryTitle: "执行摘要",
+    formSummaryDescription:
+      "Planner 和 worker 配置会跟随 idea 一起保存，并复用于该 idea 下的所有线程。",
+    nameLabel: "Idea 名称",
+    namePlaceholder: "例如 spotlight platform rollout",
+    descriptionLabel: "描述",
+    descriptionPlaceholder: "描述这个 idea 负责的跨项目目标、迁移或发布范围。",
+    modelLabel: "模型",
+    systemPromptLabel: "系统提示词",
+    plannerTitle: "Planner",
+    plannerDescription:
+      "Planner 会读取所选仓库，并输出带依赖顺序的执行 prompt。",
+    plannerPromptPlaceholder:
+      "补充 planner 应如何分析这些仓库，以及如何组织执行计划。",
+    workerTitle: "Agent worker",
+    workerDescription: "这个 worker 配置会跟随 idea 保存，供后续执行实现类任务使用。",
+    workerPromptPlaceholder:
+      "补充 worker 在拿到 planner 的交接任务后应如何实现代码改动。",
+    selectAtLeastOneProject: "至少选择一个已挂载项目后才能继续。",
   },
 
   // Agents
@@ -188,12 +239,17 @@ export const zhCN: Translations = {
     agentCreated: "智能体已创建！",
     startChatting: "开始对话",
     backToGallery: "返回 Gallery",
+    templatesTitle: "起步模板",
+    templatesDescription:
+      "如果你已经知道自己要哪种专用智能体，可以直接使用内置模板，无需再通过对话引导创建。",
+    useTemplate: "使用模板",
   },
 
   // Breadcrumb
   breadcrumb: {
     workspace: "工作区",
     chats: "对话",
+    idea: "Ideas",
   },
 
   // Workspace

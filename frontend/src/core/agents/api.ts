@@ -1,6 +1,11 @@
 import { getBackendBaseURL } from "@/core/config";
 
-import type { Agent, CreateAgentRequest, UpdateAgentRequest } from "./types";
+import type {
+  Agent,
+  AgentTemplate,
+  CreateAgentRequest,
+  UpdateAgentRequest,
+} from "./types";
 
 export async function listAgents(): Promise<Agent[]> {
   const res = await fetch(`${getBackendBaseURL()}/api/agents`);
@@ -13,6 +18,13 @@ export async function getAgent(name: string): Promise<Agent> {
   const res = await fetch(`${getBackendBaseURL()}/api/agents/${name}`);
   if (!res.ok) throw new Error(`Agent '${name}' not found`);
   return res.json() as Promise<Agent>;
+}
+
+export async function listAgentTemplates(): Promise<AgentTemplate[]> {
+  const res = await fetch(`${getBackendBaseURL()}/api/agent-templates`);
+  if (!res.ok) throw new Error(`Failed to load agent templates: ${res.statusText}`);
+  const data = (await res.json()) as { templates: AgentTemplate[] };
+  return data.templates;
 }
 
 export async function createAgent(request: CreateAgentRequest): Promise<Agent> {
